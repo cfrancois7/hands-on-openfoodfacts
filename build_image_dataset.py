@@ -14,7 +14,7 @@ from tqdm import tqdm
 import json
 
 # %%
-client = MongoClient('localhost', 27017)
+client = MongoClient('localhost', 27017, connectTimeoutMS=5000, serverSelectionTimeoutMS=5000)
 db = client['off']
 collection = db['products']
 prefix = 'https://images.openfoodfacts.org/images/products/'
@@ -34,12 +34,27 @@ query = {
 cursor = collection.find(query, projection=projection, limit=10000)
 
 # %%
-ids = [i for i in cursor]
-image_url_dict= {i['code']:parse(i, prefix=prefix) for i in ids}
+from pymongo.errors import ServerSelectionTimeoutError
+from pathlib import Path
+import json
+
+f = Path('data/image_data.json')
+
+try:
+    ids = [i for i in cursor]
+except ServerSelectionTimeoutError:
+    # Does it exists the file locally?
+    if f.is_file():
+        with open(f, 'r') as file:
+            ids = json.load(file)
+            
+with open(f, 'w') as file:
+    json.dump(ids, file)
 
 # %%
 # build dict with code as key and product_name and/or
 # abbreviated_product_name when they exist
+image_url_dict = {i['code']:parse(i, prefix=prefix) for i in ids}
 id_name_dict = {
     i['code']:{
     'product_name':i.get('product_name', 'NA'),
@@ -75,8 +90,5 @@ for code, urls in tqdm(image_url_dict.items()):
             DOWNLOADED_IMAGE_LIST.touch(exist_ok=True)
         with open(str(DOWNLOADED_IMAGE_LIST), 'a') as f:
             f.write(f'{code}\n')
-
-# %%
-
 
 
