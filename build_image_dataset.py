@@ -9,7 +9,7 @@
 
 # %%
 from pymongo import MongoClient
-from module.utils import parse, get_image, save_image
+from module.image import parse, get_image, save_image
 from tqdm import tqdm
 import json
 
